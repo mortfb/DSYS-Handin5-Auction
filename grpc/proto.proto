@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option go_package = "DSYS-Handin5-Auction/Auction";
+
+service Auction{
+    rpc placeBid(BidRequest) returns (BidResponse);
+
+    rpc result(Empty) returns (ResultResponse); 
+
+}
+
+message Empty{};
+
+message Client{
+    string name = 1;
+    int32 ID = 2;
+}
+
+message BidRequest{
+    int32 amount = 1;
+    Client client = 2;
+}
+
+message BidResponse{
+    string message = 1;
+    bool success = 2;
+}
+
+message ResultResponse{
+    string outcome = 1;
+    int32 highest_bid = 2;
+
+}
+
+
+
