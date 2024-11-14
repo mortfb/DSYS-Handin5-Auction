@@ -16,7 +16,10 @@ type AuctionServer struct {
 	highestBid      int
 	highestBidder   string
 	highestBidderID int
+	otherAuctions   []grpc.ClientConn
 }
+
+var finished bool = false
 
 func main() {
 	startServer()
@@ -35,9 +38,18 @@ func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidReques
 }
 
 func (Auction *AuctionServer) result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
-	log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
+	if finished {
+		log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
+		final_high_bid := Auction.highestBid
+		final_winner := Auction.highestBidder
+		//If we want to use this.
+		//final_winner_id := Auction.highestBidderID
 
-	return &proto.ResultResponse{Outcome: "Auction Result: " + Auction.highestBidder + " gets the item for " + string(Auction.highestBid), HighestBid: int32(Auction.highestBid)}, nil
+		Auction.reset()
+		return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid)}, nil
+	} else {
+		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid)}, nil
+	}
 }
 
 func startServer() {
@@ -56,5 +68,28 @@ func startServer() {
 
 	if err != nil {
 		log.Fatalf("Did not work")
+	}
+}
+
+func (Auction *AuctionServer) reset() {
+	Auction.highestBid = 0
+	Auction.highestBidder = ""
+	Auction.highestBidderID = 0
+}
+
+// updates the other acutions
+func (Auction *AuctionServer) getOtherAuctions(otherAuctions []string) {
+	for _, auction := range otherAuctions {
+		if auction == Auction.serverPort {
+			continue
+		} else {
+			//should store the connections in a list
+			conn, err := grpc.Dial(auction, grpc.WithInsecure())
+			if err != nil {
+				log.Printf("Failed to connect to auction %s: %v", auction, err)
+				continue
+			}
+			Auction.otherAuctions = append(Auction.otherAuctions, *conn)
+		}
 	}
 }
