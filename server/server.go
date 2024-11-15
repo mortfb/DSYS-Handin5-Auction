@@ -46,9 +46,9 @@ func (Auction *AuctionServer) result(ctx context.Context, req *proto.Empty) (*pr
 		//final_winner_id := Auction.highestBidderID
 
 		Auction.reset()
-		return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid)}, nil
+		return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 	} else {
-		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid)}, nil
+		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid), IsOver: false}, nil
 	}
 }
 

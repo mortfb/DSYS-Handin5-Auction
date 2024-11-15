@@ -6,7 +6,6 @@ service Auction{
     rpc placeBid(BidRequest) returns (BidResponse);
 
     rpc result(Empty) returns (ResultResponse); 
-
 }
 
 message Empty{};
@@ -29,8 +28,7 @@ message BidResponse{
 message ResultResponse{
     string outcome = 1;
     int32 highest_bid = 2;
+    bool isOver = 3;
 
 }
-
-
 
