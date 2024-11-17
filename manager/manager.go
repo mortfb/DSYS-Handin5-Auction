@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"sync"
 
 	"google.golang.org/grpc"
 )
@@ -16,10 +17,11 @@ type FrontEndManager struct {
 	proto.UnimplementedAuctionServer
 }
 
+var numberOfClients int = 0
+var mgLock sync.Mutex
+
 func main() {
-
-	startManager()
-
+	startManager() //maybe this need to be a goroutine
 }
 
 //This function is called when the manager is started.
@@ -40,15 +42,13 @@ func startManager() {
 	if err := grpcServer.Serve(listen); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
-
 }
 
 // Called when client places a bid.
 func (manager *FrontEndManager) placeBid(ctx context.Context, req *proto.BidRequest) (*proto.BidResponse, error) {
 	//We might need to use locks
-
 	//maybe make channels for the responses and errors
-
+	mgLock.Lock()
 	for _, address := range manager.serverAdresses {
 		conn, err := grpc.Dial(address, grpc.WithInsecure())
 		if err != nil {
@@ -65,9 +65,11 @@ func (manager *FrontEndManager) placeBid(ctx context.Context, req *proto.BidRequ
 		}
 
 		if response.Success {
+			mgLock.Unlock()
 			return response, nil
 		}
 	}
+	mgLock.Unlock()
 
 	// If no server accepted the bid, return a failure response
 	return &proto.BidResponse{Message: "Bid Rejected by all servers", Success: false}, nil
@@ -77,6 +79,7 @@ func (manager *FrontEndManager) placeBid(ctx context.Context, req *proto.BidRequ
 func (manager *FrontEndManager) result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
 	//We might need to use locks
 	//maybe make channels for the responses and errors
+	mgLock.Lock()
 	for _, address := range manager.serverAdresses {
 		conn, err := grpc.Dial(address, grpc.WithInsecure())
 		if err != nil {
@@ -91,10 +94,18 @@ func (manager *FrontEndManager) result(ctx context.Context, req *proto.Empty) (*
 			log.Printf("Failed to get result from server %s: %v", address, err)
 			continue
 		}
-
+		mgLock.Unlock()
 		return response, nil
 	}
-
+	mgLock.Unlock()
 	// If no server accepted the bid, return a failure response
 	return &proto.ResultResponse{Outcome: "No auction servers available"}, nil
+}
+
+func (manager *FrontEndManager) setID(ctx context.Context, req *proto.Empty) (*proto.Client, error) {
+	mgLock.Lock()
+	var id int = numberOfClients
+	numberOfClients++
+	mgLock.Unlock()
+	return &proto.Client{ID: int32(id)}, nil
 }

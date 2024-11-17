@@ -3,6 +3,7 @@ package main
 import (
 	proto "Auction/grpc"
 	"context"
+	"fmt"
 	"log"
 	"net"
 
@@ -11,18 +12,74 @@ import (
 
 type AuctionServer struct {
 	proto.UnimplementedAuctionServer
-	serverID        int
-	serverPort      string
-	highestBid      int
-	highestBidder   string
-	highestBidderID int
-	otherAuctions   []grpc.ClientConn
+	serverID           int
+	serverPort         string
+	highestBid         int
+	highestBidder      string
+	highestBidderID    int
+	otherAuctionsConns []grpc.ClientConn
+	otherAuctionPorts  []string
 }
 
 var finished bool = false
 
 func main() {
-	startServer()
+	var input string
+	log.Printf("Enter the server port (5050, 5051 or 5052)")
+	fmt.Scan(&input)
+
+	var auctionServer *AuctionServer
+	if input == "5050" {
+		auctionServer = &AuctionServer{
+			serverID:          0,
+			serverPort:        ":5050",
+			highestBid:        0,
+			highestBidder:     "",
+			highestBidderID:   0,
+			otherAuctionPorts: []string{":5051", ":5052"},
+		}
+	} else if input == "5051" {
+		auctionServer = &AuctionServer{
+			serverID:          1,
+			serverPort:        ":5051",
+			highestBid:        0,
+			highestBidder:     "",
+			highestBidderID:   0,
+			otherAuctionPorts: []string{":5050", ":5052"},
+		}
+	} else if input == "5052" {
+		auctionServer = &AuctionServer{
+			serverID:          2,
+			serverPort:        ":5052",
+			highestBid:        0,
+			highestBidder:     "",
+			highestBidderID:   0,
+			otherAuctionPorts: []string{":5050", ":5051"},
+		}
+	}
+
+	go auctionServer.startServer()
+
+	auctionServer.connectToOtherAuctions(auctionServer.otherAuctionPorts)
+
+}
+
+func (server *AuctionServer) startServer() {
+
+	log.Printf("Server started")
+
+	grpcServer := grpc.NewServer()
+	listener, err := net.Listen("tcp", server.serverPort)
+	if err != nil {
+		log.Fatalf("Did not work")
+	}
+
+	proto.RegisterAuctionServer(grpcServer, server)
+	err = grpcServer.Serve(listener)
+
+	if err != nil {
+		log.Fatalf("Did not work")
+	}
 }
 
 func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidRequest) (*proto.BidResponse, error) {
@@ -38,36 +95,19 @@ func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidReques
 }
 
 func (Auction *AuctionServer) result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
+	//Need a timer to check if the auction is finished
+
 	if finished {
 		log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 		final_high_bid := Auction.highestBid
 		final_winner := Auction.highestBidder
 		//If we want to use this.
-		//final_winner_id := Auction.highestBidderID
+		final_winner_id := Auction.highestBidderID
 
 		Auction.reset()
-		return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
+		return &proto.ResultResponse{Outcome: "Auction Result: " + string(final_winner_id) + " " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 	} else {
-		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid), IsOver: false}, nil
-	}
-}
-
-func startServer() {
-	server := &AuctionServer{}
-
-	log.Printf("Server started")
-
-	grpcServer := grpc.NewServer()
-	listener, err := net.Listen("tcp", ":5050")
-	if err != nil {
-		log.Fatalf("Did not work")
-	}
-
-	proto.RegisterAuctionServer(grpcServer, server)
-	err = grpcServer.Serve(listener)
-
-	if err != nil {
-		log.Fatalf("Did not work")
+		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + string(Auction.highestBidderID) + " " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid), IsOver: false}, nil
 	}
 }
 
@@ -78,7 +118,7 @@ func (Auction *AuctionServer) reset() {
 }
 
 // updates the other acutions
-func (Auction *AuctionServer) getOtherAuctions(otherAuctions []string) {
+func (Auction *AuctionServer) connectToOtherAuctions(otherAuctions []string) {
 	for _, auction := range otherAuctions {
 		if auction == Auction.serverPort {
 			continue
@@ -89,7 +129,7 @@ func (Auction *AuctionServer) getOtherAuctions(otherAuctions []string) {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
 			}
-			Auction.otherAuctions = append(Auction.otherAuctions, *conn)
+			Auction.otherAuctionsConns = append(Auction.otherAuctionsConns, *conn)
 		}
 	}
 }

@@ -25,13 +25,16 @@ func main() {
 		ID:   int32(id),
 	}
 
-	// IMPORTANT: Connecting to the frontend.
+	// IMPORTANT: Connecting to the frontend, always on.
 	conn, err := grpc.Dial(":5000", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
 
 	client := proto.NewAuctionClient(conn)
+
+	//setting the client ID
+	client.SetID(context.Background(), &proto.Empty{})
 
 	var bid int
 

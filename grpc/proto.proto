@@ -6,6 +6,8 @@ service Auction{
     rpc placeBid(BidRequest) returns (BidResponse);
 
     rpc result(Empty) returns (ResultResponse); 
+
+    rpc setID(Empty) returns (Client);
 }
 
 message Empty{};
