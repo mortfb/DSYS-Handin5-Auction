@@ -117,7 +117,7 @@ func (Auction *AuctionServer) reset() {
 	Auction.highestBidderID = 0
 }
 
-// updates the other acutions
+// connects the other acutions
 func (Auction *AuctionServer) connectToOtherAuctions(otherAuctions []string) {
 	for _, auction := range otherAuctions {
 		if auction == Auction.serverPort {

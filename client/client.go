@@ -34,7 +34,8 @@ func main() {
 	client := proto.NewAuctionClient(conn)
 
 	//setting the client ID
-	client.SetID(context.Background(), &proto.Empty{})
+	resID, _ := client.SetID(context.Background(), &proto.Empty{})
+	thisClient.ID = resID.ID
 
 	var bid int
 
