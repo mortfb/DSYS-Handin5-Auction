@@ -31,17 +31,20 @@ func main() {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
 
-	client := proto.NewAuctionClient(conn)
+	//connects the client to the frontendmanager
+	manager := proto.NewAuctionClient(conn)
 
 	//setting the client ID
+<<<<<<< Updated upstream
 	resID, _ := client.SetID(context.Background(), &proto.Empty{})
 	thisClient.ID = resID.ID
+=======
+	manager.SetID(context.Background(), &proto.Empty{})
+>>>>>>> Stashed changes
 
 	var bid int
 
 	for {
-		//maybe placing bids should be done as manual input in the terminal
-
 		fmt.Println("Enter the bid amount")
 		fmt.Scan(&bid)
 
@@ -52,12 +55,12 @@ func main() {
 			currentBid = bid
 		}
 
-		client.PlaceBid(context.Background(), &proto.BidRequest{
+		manager.PlaceBid(context.Background(), &proto.BidRequest{
 			Amount: int32(bid),
 			Client: thisClient,
 		})
 
-		res, err := client.Result(context.Background(), &proto.Empty{})
+		res, err := manager.Result(context.Background(), &proto.Empty{})
 
 		if err != nil {
 			log.Fatalf("Failed to get result: %v", err)

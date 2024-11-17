@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -19,6 +20,7 @@ type AuctionServer struct {
 	highestBidderID    int
 	otherAuctionsConns []grpc.ClientConn
 	otherAuctionPorts  []string
+	updateCounter      int
 }
 
 var finished bool = false
@@ -37,6 +39,7 @@ func main() {
 			highestBidder:     "",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5051", ":5052"},
+			updateCounter:     0,
 		}
 	} else if input == "5051" {
 		auctionServer = &AuctionServer{
@@ -46,6 +49,7 @@ func main() {
 			highestBidder:     "",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5052"},
+			updateCounter:     0,
 		}
 	} else if input == "5052" {
 		auctionServer = &AuctionServer{
@@ -55,12 +59,24 @@ func main() {
 			highestBidder:     "",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5051"},
+			updateCounter:     0,
 		}
 	}
 
 	go auctionServer.startServer()
 
 	auctionServer.connectToOtherAuctions(auctionServer.otherAuctionPorts)
+
+	timer := time.NewTimer(10 * time.Second)
+
+	for {
+		select {
+		case <-timer.C:
+			finished = true
+		default:
+
+		}
+	}
 
 }
 
@@ -83,21 +99,28 @@ func (server *AuctionServer) startServer() {
 }
 
 func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidRequest) (*proto.BidResponse, error) {
-	log.Printf("Bid placed by %s for %d", req.Client.Name, req.Amount)
-	if int(req.Amount) > Auction.highestBid {
-		Auction.highestBid = int(req.Amount)
-		Auction.highestBidder = req.Client.Name
-		Auction.highestBidderID = int(req.Client.ID)
-		return &proto.BidResponse{Message: "Bid Placed"}, nil
+	if !finished {
+		log.Printf("Bid placed by %s for %d", req.Client.Name, req.Amount)
+		if int(req.Amount) > Auction.highestBid {
+			Auction.updateCounter++
+			Auction.highestBid = int(req.Amount)
+			Auction.highestBidder = req.Client.Name
+			Auction.highestBidderID = int(req.Client.ID)
+			return &proto.BidResponse{Message: "Bid Placed"}, nil
+		} else {
+			return &proto.BidResponse{Message: "Bid Rejected"}, nil
+		}
 	} else {
-		return &proto.BidResponse{Message: "Bid Rejected"}, nil
+		return &proto.BidResponse{Message: "The auction is over, bid rejected"}, nil
 	}
+
 }
 
 func (Auction *AuctionServer) result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
 	//Need a timer to check if the auction is finished
 
 	if finished {
+		Auction.updateCounter++
 		log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 		final_high_bid := Auction.highestBid
 		final_winner := Auction.highestBidder
@@ -115,9 +138,15 @@ func (Auction *AuctionServer) reset() {
 	Auction.highestBid = 0
 	Auction.highestBidder = ""
 	Auction.highestBidderID = 0
+	finished = false
+
 }
 
+<<<<<<< Updated upstream
 // connects the other acutions
+=======
+// connects to the other acutions
+>>>>>>> Stashed changes
 func (Auction *AuctionServer) connectToOtherAuctions(otherAuctions []string) {
 	for _, auction := range otherAuctions {
 		if auction == Auction.serverPort {
