@@ -133,7 +133,7 @@ func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidReques
 
 		//May need to have something here, that handles if the leader does not respond (ELECTION)
 		if err != nil {
-			//HOLD ELECTION
+			Auction.startElection()
 		}
 
 		node := proto.NewAuctionClient(conn)
@@ -169,18 +169,20 @@ func (Auction *AuctionServer) reset() {
 }
 
 // connects to the other auctionservers
-func (Auction *AuctionServer) connectToOtherAuctions(otherAuctions []string) {
-	for _, auction := range otherAuctions {
+func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions() {
+	for _, auction := range Auction.otherAuctionPorts {
 		if auction == Auction.serverPort {
 			continue
 		} else {
 			//should store the connections in a list
 			conn, err := grpc.Dial(auction, grpc.WithInsecure())
+			defer conn.Close()
 			if err != nil {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
 			}
-			Auction.otherAuctionsConns = append(Auction.otherAuctionsConns, *conn)
+			node := proto.NewAuctionClient(conn)
+			node.PlaceBid()
 		}
 	}
 }
