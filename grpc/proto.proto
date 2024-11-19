@@ -38,7 +38,8 @@ message ResultResponse{
 }
 
 message ElectionRequest{
-    int32 serverID = 1;
+    int32 electionMessage = 1;
+    int32 serverID = 2;
 }
 message ElectionResponse{
     bool success = 1;

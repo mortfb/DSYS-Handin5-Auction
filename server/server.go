@@ -11,9 +11,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+var nextServer proto.AuctionClient
+
 type AuctionServer struct {
 	proto.UnimplementedAuctionServer
-	serverID           int
+	serverID           int32
 	serverPort         string
 	highestBid         int
 	highestBidder      string
@@ -22,10 +24,12 @@ type AuctionServer struct {
 	otherAuctionPorts  []string
 	updateCounter      int
 	isLeader           bool
-	participate bool
+	leaderPort         string
+	participate        bool
 }
 
 var finished bool = false
+
 func main() {
 	var input string
 	log.Printf("Enter the server port (5050, 5051 or 5052)")
@@ -41,8 +45,8 @@ func main() {
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5051", ":5052"},
 			updateCounter:     0,
-			isLeader: true,
-			participate: false,
+			isLeader:          true,
+			participate:       false,
 		}
 	} else if input == "5051" {
 		auctionServer = &AuctionServer{
@@ -53,9 +57,8 @@ func main() {
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5052"},
 			updateCounter:     0,
-			isLeader: false,
-			participate: false,
-
+			isLeader:          false,
+			participate:       false,
 		}
 	} else if input == "5052" {
 		auctionServer = &AuctionServer{
@@ -66,9 +69,8 @@ func main() {
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5051"},
 			updateCounter:     0,
-			isLeader: false,
-			participate: false,
-
+			isLeader:          false,
+			participate:       false,
 		}
 
 	}
@@ -87,7 +89,7 @@ func main() {
 
 		}
 	}
-	
+
 }
 
 func (server *AuctionServer) startServer() {
@@ -109,7 +111,7 @@ func (server *AuctionServer) startServer() {
 }
 
 func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidRequest) (*proto.BidResponse, error) {
-	if(Auction.isLeader){
+	if Auction.isLeader {
 		if !finished {
 			log.Printf("Bid placed by %s for %d", req.Client.Name, req.Amount)
 			if int(req.Amount) > Auction.highestBid {
@@ -124,10 +126,19 @@ func (Auction *AuctionServer) placeBid(ctx context.Context, req *proto.BidReques
 		} else {
 			return &proto.BidResponse{Message: "The auction is over, bid rejected"}, nil
 		}
-	}else{
-		conn, err := 
+	} else {
+		//connects to the leader.
+		conn, err := grpc.Dial(Auction.leaderPort, grpc.WithInsecure())
+		defer conn.Close()
 
-		response, err :=  
+		//May need to have something here, that handles if the leader does not respond (ELECTION)
+		if err != nil {
+			//HOLD ELECTION
+		}
+
+		node := proto.NewAuctionClient(conn)
+		response, err := node.PlaceBid(ctx, req)
+		return response, err
 	}
 
 }
@@ -174,25 +185,30 @@ func (Auction *AuctionServer) connectToOtherAuctions(otherAuctions []string) {
 	}
 }
 
-func (Auction *AuctionServer) startElection(){
-
+func (Auction *AuctionServer) startElection() {
+	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{
+		ElectionMessage: Auction.serverID,
+		ServerID:        Auction.serverID,
+	})
 }
 
-func (Auction *AuctionServer) sendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse){
-	if Auction.serverPort == ":5050" {
-		Auction.NodeID = 0
-		node.NextNodeID = 1
-	} else if node.nextPort == ":5050" {
-		node.NodeID = req.SenderID + 1
-		node.NextNodeID = 0
-	} else {
-		node.NodeID = req.SenderID + 1
-		node.NextNodeID = req.SenderID + 2
+func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error) {
+	if req.ElectionMessage == Auction.serverID {
+		Auction.isLeader = true
+		nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+			ElectionMessage: Auction.serverID,
+			ServerID:        Auction.serverID,
+		})
+	} else if req.ElectionMessage > Auction.serverID {
+		nextServer.SendElectionMessage(ctx, req)
+	} else if !Auction.participate {
+		nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+			ElectionMessage: Auction.serverID,
+			ServerID:        Auction.serverID,
+		})
 	}
-
-	idUpdated = true
-
-	return &proto.IDSendResponse{
+	Auction.participate = true
+	return &proto.ElectionResponse{
 		Success: true,
 	}, nil
 }
