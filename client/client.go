@@ -35,12 +35,8 @@ func main() {
 	manager := proto.NewAuctionClient(conn)
 
 	//setting the client ID
-<<<<<<< Updated upstream
-	resID, _ := client.SetID(context.Background(), &proto.Empty{})
+	resID, _ := manager.SetID(context.Background(), &proto.Empty{})
 	thisClient.ID = resID.ID
-=======
-	manager.SetID(context.Background(), &proto.Empty{})
->>>>>>> Stashed changes
 
 	var bid int
 

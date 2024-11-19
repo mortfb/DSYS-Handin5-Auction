@@ -8,6 +8,9 @@ service Auction{
     rpc result(Empty) returns (ResultResponse); 
 
     rpc setID(Empty) returns (Client);
+
+    rpc sendElectionMessage(ElectionRequest) returns (ElectionResponse);
+    
 }
 
 message Empty{};
@@ -20,6 +23,7 @@ message Client{
 message BidRequest{
     int32 amount = 1;
     Client client = 2;
+    bool fromLeader = 3;
 }
 
 message BidResponse{
@@ -31,6 +35,14 @@ message ResultResponse{
     string outcome = 1;
     int32 highest_bid = 2;
     bool isOver = 3;
-
 }
+
+message ElectionRequest{
+    int32 serverID = 1;
+}
+message ElectionResponse{
+    bool success = 1;
+}
+
+
 
