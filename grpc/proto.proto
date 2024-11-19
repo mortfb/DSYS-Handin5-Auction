@@ -10,6 +10,8 @@ service Auction{
     rpc setID(Empty) returns (Client);
 
     rpc sendElectionMessage(ElectionRequest) returns (ElectionResponse);
+
+    rpc sendUpdateBid(UpdateRequest) returns (UpdateResponse);
     
 }
 
@@ -42,6 +44,18 @@ message ElectionRequest{
     int32 serverID = 2;
 }
 message ElectionResponse{
+    bool success = 1;
+}
+
+message UpdateRequest{
+    int32 serverID = 1;
+    int32 highestBid = 2;
+    string highestBidder = 3;
+    int32 updateCounter = 4;
+    int32 numberClients = 5;
+}
+
+message UpdateResponse{
     bool success = 1;
 }
 

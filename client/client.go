@@ -16,18 +16,16 @@ var thisClient *proto.Client
 
 var currentBid int = 0
 
-var serverPorts = [3]string{":5050", ":5051", "5052"}
+var serverPorts = [3]string{":5050", ":5051", ":5052"}
 
 func main() {
 	var name string
-	var id int
 
 	fmt.Println("Enter your name")
 	fmt.Scan(&name)
 
 	thisClient = &proto.Client{
 		Name: name,
-		ID:   int32(id),
 	}
 
 	//Client connects to a random port, simulating front-end???????????.
@@ -42,17 +40,37 @@ func main() {
 		log.Fatalf("Failed to connect to server: %v", connErr)
 	}
 
+	log.Printf("Connected to  %s", serverPorts[randPort])
+
 	//connects the client to the frontendmanager
 	node := proto.NewAuctionClient(conn)
-	/*
-		//setting the client ID
-		resID, _ := node.SetID(context.Background(), &proto.Empty{})
-		thisClient.ID = resID.ID
-	*/
+
+	tmp, _ := node.SetID(context.Background(), &proto.Empty{})
+	thisClient.ID = tmp.ID
+
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			res, err := node.Result(context.Background(), &proto.Empty{})
+			if err != nil {
+				log.Fatalf("Failed to get result: %v", err)
+			}
+
+			if res.IsOver {
+				//Do something when the auction is over
+				fmt.Println(res.Outcome)
+			} else {
+				fmt.Println(res.Outcome)
+			}
+		}
+	}()
+
 	var bid int
 	for {
+
 		startTime := time.Now()
 
+		//this should be done with a timer
 		state := conn.GetState()
 
 		if state == connectivity.TransientFailure || state == connectivity.Shutdown && time.Since(startTime) >= 2*time.Second {
@@ -79,7 +97,7 @@ func main() {
 		}
 
 		bidRes, erro := node.PlaceBid(context.Background(), &proto.BidRequest{
-			Amount: int32(bid),
+			Amount: int32(currentBid),
 			Client: thisClient,
 		})
 
@@ -97,9 +115,9 @@ func main() {
 
 		if res.IsOver {
 			//Do something when the auction is over
-			fmt.Println(res.Outcome)
+			log.Println(res.Outcome)
 		} else {
-			fmt.Println(res.Outcome)
+			log.Println(res.Outcome)
 		}
 
 		if bid == -1 {
