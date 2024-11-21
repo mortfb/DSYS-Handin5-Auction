@@ -227,7 +227,7 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
 			}
-
+			log.Printf("ik this isn't the problem")
 			defer conn.Close()
 
 			node := proto.NewAuctionClient(conn)
@@ -312,6 +312,7 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 			log.Fatalf("Failed to send token to next node: %v", err)
 		}
 	}
+	log.Printf("the leader is " + Auction.leaderPort)
 	log.Printf("do we actually get to this point?")
 	return &proto.ElectionResponse{
 		Success: true,
@@ -345,7 +346,7 @@ func (Auction *AuctionServer) SetID(ctx context.Context, req *proto.Empty) (*pro
 
 func (Auction *AuctionServer) setNextServer() {
 	if Auction.serverPort == ":5050" {
-		conn, err := grpc.Dial(":5051", grpc.WithInsecure())
+		conn, err := grpc.Dial(":5051", grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5051"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -360,22 +361,22 @@ func (Auction *AuctionServer) setNextServer() {
 	}
 
 	if Auction.serverPort == ":5051" {
-		conn, err := grpc.Dial(":5052", grpc.WithInsecure())
+		conn, err := grpc.Dial(":5052", grpc.WithInsecure(), grpc.WithBlock())
+		nextServerPort = ":5052"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
 
-			conn, err = grpc.Dial(":5050", grpc.WithInsecure())
-			nextServerPort = ":5052"
+			conn, err = grpc.Dial(":5052", grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
-			nextServerPort = ":5051"
+			nextServerPort = ":5050"
 		}
 		nextServer = proto.NewAuctionClient(conn)
 	}
 
 	if Auction.serverPort == ":5052" {
-		conn, err := grpc.Dial(":5050", grpc.WithInsecure())
+		conn, err := grpc.Dial(":5050", grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5050"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
