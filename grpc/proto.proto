@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "DSYS-Handin5-Auction/Auction";
 
 service Auction{
-    rpc placeBid(BidRequest) returns (BidResponse);
+    rpc bid(BidRequest) returns (BidResponse);
 
     rpc result(Empty) returns (ResultResponse); 
 

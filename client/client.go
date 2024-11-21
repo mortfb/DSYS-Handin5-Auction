@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 var thisClient *proto.Client
@@ -68,23 +67,6 @@ func main() {
 
 	var bid int
 	for {
-		startTime := time.Now()
-
-		//this should be done with a timer
-		state := conn.GetState()
-
-		if state == connectivity.TransientFailure && time.Since(startTime) >= 2*time.Second || state == connectivity.Shutdown && time.Since(startTime) >= 2*time.Second {
-			log.Println("Connection lost!")
-
-			randPort = rand.IntN(len(serverPorts))
-
-			conn, connErr = grpc.Dial(serverPorts[randPort], grpc.WithInsecure())
-			log.Printf("Connected to  %s", serverPorts[randPort])
-			if connErr != nil {
-				log.Fatalf("Failed to connect to server: %v", connErr)
-			}
-
-		}
 
 		fmt.Println("Enter the bid amount")
 		fmt.Scan(&bid)
@@ -96,7 +78,7 @@ func main() {
 			currentBid = bid
 		}
 
-		bidRes, erro := node.PlaceBid(context.Background(), &proto.BidRequest{
+		bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
 			Amount: int32(currentBid),
 			Client: thisClient,
 		})
@@ -117,6 +99,7 @@ func main() {
 			if res.IsOver {
 				//Do something when the auction is over
 				log.Println(res.Outcome)
+				break
 			} else {
 				log.Println(res.Outcome)
 			}
