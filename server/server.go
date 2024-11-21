@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"time"
 
 	"google.golang.org/grpc"
@@ -201,12 +202,11 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 		log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 		final_high_bid := Auction.highestBid
 		final_winner := Auction.highestBidder
-		final_winner_id := Auction.highestBidderID
 
 		Auction.reset()
-		return &proto.ResultResponse{Outcome: "Auction Result: " + string(final_winner_id) + " " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
+		return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + string(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 	} else {
-		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + string(Auction.highestBidderID) + " " + Auction.highestBidder + " has the highest bid on " + string(Auction.highestBid), IsOver: false}, nil
+		return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + strconv.Itoa(Auction.highestBid), IsOver: false}, nil
 	}
 }
 
