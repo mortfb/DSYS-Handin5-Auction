@@ -12,6 +12,7 @@ import (
 )
 
 var nextServer proto.AuctionClient
+var nextServerPort string
 
 //var waitGroup sync.WaitGroup
 
@@ -245,7 +246,11 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 func (Auction *AuctionServer) startElection() {
 	//defer waitGroup.Done()
 	log.Printf("Starting election")
-	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{ElectionPort: Auction.serverPort, ServerID: Auction.serverID})
+	/*var electionUnderway bool = true
+	for electionUnderway {
+
+	}*/
+	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{ElectionPort: Auction.serverPort, LeaderID: 0, ServerID: Auction.serverID})
 }
 
 var currentLeader int32 = 0
@@ -253,7 +258,11 @@ var roundCounter int = 0
 
 // Note: We need to figure out how we update the "next server" in the ring, in case of a server failure
 func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error) {
+	log.Printf("just a test")
+	log.Println(req.LeaderID)
+	log.Println(req.ServerID)
 	if nextServer == nil {
+		log.Printf("probably not the case")
 		Auction.setNextServer()
 	}
 
@@ -277,26 +286,31 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 		Auction.leaderPort = Auction.serverPort
 		//elected
 
-	} else if req.ServerID > Auction.serverID {
-		log.Printf("I am just sending this over")
+	} else if req.LeaderID > Auction.serverID {
+		log.Println("I am just sending this over to " + nextServerPort)
 		currentLeader = req.LeaderID
 		Auction.leaderPort = req.ElectionPort
-		nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
 			ElectionPort: req.ElectionPort,
 			ServerID:     req.ServerID,
 			LeaderID:     req.LeaderID,
 		})
+		if err != nil {
+			log.Fatalf("Failed to send token to next node: %v", err)
+		}
 
 	} else if !Auction.participate {
 		log.Printf("I am the current winner")
 		Auction.participate = true
 		Auction.leaderPort = Auction.serverPort
-		nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
 			ElectionPort: Auction.serverPort,
 			ServerID:     Auction.serverID,
 			LeaderID:     Auction.serverID,
 		})
-
+		if err != nil {
+			log.Fatalf("Failed to send token to next node: %v", err)
+		}
 	}
 	log.Printf("do we actually get to this point?")
 	return &proto.ElectionResponse{
@@ -332,6 +346,7 @@ func (Auction *AuctionServer) SetID(ctx context.Context, req *proto.Empty) (*pro
 func (Auction *AuctionServer) setNextServer() {
 	if Auction.serverPort == ":5050" {
 		conn, err := grpc.Dial(":5051", grpc.WithInsecure())
+		nextServerPort = ":5051"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
 
@@ -339,6 +354,7 @@ func (Auction *AuctionServer) setNextServer() {
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
+			nextServerPort = ":5052"
 		}
 		nextServer = proto.NewAuctionClient(conn)
 	}
@@ -349,15 +365,18 @@ func (Auction *AuctionServer) setNextServer() {
 			log.Printf("Failed to connect to server: %v", err)
 
 			conn, err = grpc.Dial(":5050", grpc.WithInsecure())
+			nextServerPort = ":5052"
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
+			nextServerPort = ":5051"
 		}
 		nextServer = proto.NewAuctionClient(conn)
 	}
 
 	if Auction.serverPort == ":5052" {
 		conn, err := grpc.Dial(":5050", grpc.WithInsecure())
+		nextServerPort = ":5050"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
 
@@ -365,8 +384,10 @@ func (Auction *AuctionServer) setNextServer() {
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
+			nextServerPort = ":5051"
 		}
 		nextServer = proto.NewAuctionClient(conn)
+
 	}
 
 }
