@@ -23,6 +23,7 @@ type AuctionClient interface {
 	SetID(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Client, error)
 	SendElectionMessage(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*ElectionResponse, error)
 	SendUpdateBid(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UpdateResponse, error)
+	TestAlive(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type auctionClient struct {
@@ -78,6 +79,15 @@ func (c *auctionClient) SendUpdateBid(ctx context.Context, in *UpdateRequest, op
 	return out, nil
 }
 
+func (c *auctionClient) TestAlive(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/Auction/testAlive", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuctionServer is the server API for Auction service.
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility
@@ -87,6 +97,7 @@ type AuctionServer interface {
 	SetID(context.Context, *Empty) (*Client, error)
 	SendElectionMessage(context.Context, *ElectionRequest) (*ElectionResponse, error)
 	SendUpdateBid(context.Context, *UpdateRequest) (*UpdateResponse, error)
+	TestAlive(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -108,6 +119,9 @@ func (UnimplementedAuctionServer) SendElectionMessage(context.Context, *Election
 }
 func (UnimplementedAuctionServer) SendUpdateBid(context.Context, *UpdateRequest) (*UpdateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendUpdateBid not implemented")
+}
+func (UnimplementedAuctionServer) TestAlive(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TestAlive not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 
@@ -212,6 +226,24 @@ func _Auction_SendUpdateBid_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auction_TestAlive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).TestAlive(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Auction/testAlive",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).TestAlive(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +270,10 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "sendUpdateBid",
 			Handler:    _Auction_SendUpdateBid_Handler,
+		},
+		{
+			MethodName: "testAlive",
+			Handler:    _Auction_TestAlive_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

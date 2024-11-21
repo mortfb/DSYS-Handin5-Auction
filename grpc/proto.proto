@@ -13,7 +13,7 @@ service Auction{
 
     rpc sendUpdateBid(UpdateRequest) returns (UpdateResponse);
 
-    
+    rpc testAlive(Empty) returns (Empty);
 }
 
 message Empty{};
@@ -60,6 +60,7 @@ message UpdateRequest{
 message UpdateResponse{
     bool success = 1;
 }
+
 
 
 
