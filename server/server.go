@@ -83,7 +83,6 @@ func main() {
 			numberClients:     0,
 			leaderPort:        "",
 		}
-
 	}
 
 	go auctionServer.startServer()
@@ -93,8 +92,6 @@ func main() {
 	if auctionServer.serverPort == ":5052" {
 		auctionServer.startElection()
 	}
-
-	//auctionServer.connectToOtherAuctions(auctionServer.otherAuctionPorts)
 
 	//TIMER FOR ENDING AND RESTARTING THE AUCTION
 	timer := time.NewTimer(10 * time.Second)
@@ -123,8 +120,6 @@ func main() {
 		if auctionServer.isLeader {
 			if finished {
 				log.Printf("Auction is over")
-				//auctionServer.sendUpdatedBidToOtherAuctions()
-				//auctionServer.result(context.Background(), &proto.Empty{})
 				auctionServer.reset()
 				finished = false
 				timer.Reset(10 * time.Second)
@@ -159,14 +154,22 @@ func (Auction *AuctionServer) PlaceBid(ctx context.Context, req *proto.BidReques
 			log.Printf("Bid placed by %s for %d", req.Client.Name, req.Amount)
 			if int(req.Amount) > Auction.highestBid {
 				log.Printf("Highest bid is now %d by %s", req.Amount, req.Client.Name)
-				Auction.updateCounter++
 				Auction.highestBid = int(req.Amount)
 				Auction.highestBidder = req.Client.Name
 				Auction.highestBidderID = int(req.Client.ID)
-				return &proto.BidResponse{Message: "Bid Placed"}, nil
 			} else {
 				return &proto.BidResponse{Message: "Bid Rejected"}, nil
 			}
+			Auction.updateCounter++
+			//does not work
+			if Auction.updateCounter%25 == 0 {
+				finished = true
+				Auction.updateCounter = 0
+			}
+
+			Auction.sendUpdatedBidToOtherAuctions(ctx, req)
+			return &proto.BidResponse{Message: "Bid Placed"}, nil
+
 		} else {
 			return &proto.BidResponse{Message: "The auction is over, bid rejected"}, nil
 		}
@@ -198,7 +201,6 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 		log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 		final_high_bid := Auction.highestBid
 		final_winner := Auction.highestBidder
-		//If we want to use this.
 		final_winner_id := Auction.highestBidderID
 
 		Auction.reset()
@@ -227,7 +229,6 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
 			}
-			log.Printf("ik this isn't the problem")
 			defer conn.Close()
 
 			node := proto.NewAuctionClient(conn)
@@ -244,12 +245,7 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 }
 
 func (Auction *AuctionServer) startElection() {
-	//defer waitGroup.Done()
 	log.Printf("Starting election")
-	/*var electionUnderway bool = true
-	for electionUnderway {
-
-	}*/
 	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{ElectionPort: Auction.serverPort, LeaderID: 0, ServerID: Auction.serverID})
 }
 
@@ -258,30 +254,14 @@ var roundCounter int = 0
 
 // Note: We need to figure out how we update the "next server" in the ring, in case of a server failure
 func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error) {
-	log.Printf("just a test")
-	log.Println(req.LeaderID)
-	log.Println(req.ServerID)
 	if nextServer == nil {
-		log.Printf("probably not the case")
 		Auction.setNextServer()
 	}
-
-	/*if roundCounter > 2 {
-		log.Printf("Election process completed")
-		roundCounter = 0
-		return &proto.ElectionResponse{
-			Success: true,
-		}, nil
-	}
-
-	if req.ServerID != Auction.serverID {
-		log.Printf("Election message received from %d", req.ServerID)
-		roundCounter++
-	}*/
 
 	if req.LeaderID == Auction.serverID {
 		log.Printf("I won the Election %d", Auction.serverID)
 		Auction.isLeader = true
+		Auction.leaderPort = Auction.serverPort
 		currentLeader = Auction.serverID
 		Auction.leaderPort = Auction.serverPort
 		//elected
@@ -313,7 +293,6 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 		}
 	}
 	log.Printf("the leader is " + Auction.leaderPort)
-	log.Printf("do we actually get to this point?")
 	return &proto.ElectionResponse{
 		Success: true,
 	}, nil
@@ -327,6 +306,7 @@ func (Auction *AuctionServer) SendUpdateBid(ctx context.Context, req *proto.Upda
 		Auction.highestBidder = req.HighestBidder
 		Auction.updateCounter = int(req.UpdateCounter)
 		Auction.numberClients = int(req.NumberClients)
+		log.Printf("Highest bid is now %d by %s", Auction.highestBid, Auction.highestBidder)
 		return &proto.UpdateResponse{
 			Success: true,
 		}, nil
@@ -391,6 +371,10 @@ func (Auction *AuctionServer) setNextServer() {
 
 	}
 
+}
+
+func TestAlive(ctx context.Context, req *proto.Empty) (*proto.Empty, error) {
+	return &proto.Empty{}, nil
 }
 
 /*func (Auction *AuctionServer) Elected (ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error){
