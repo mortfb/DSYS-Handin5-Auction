@@ -12,6 +12,7 @@ service Auction{
     rpc sendElectionMessage(ElectionRequest) returns (ElectionResponse);
 
     rpc sendUpdateBid(UpdateRequest) returns (UpdateResponse);
+
     
 }
 
@@ -40,8 +41,9 @@ message ResultResponse{
 }
 
 message ElectionRequest{
-    int32 electionMessage = 1;
+    string electionPort = 1;
     int32 serverID = 2;
+    int32 leaderID = 3;
 }
 message ElectionResponse{
     bool success = 1;

@@ -36,6 +36,7 @@ func main() {
 	var connErr error
 
 	conn, connErr = grpc.Dial(serverPorts[randPort], grpc.WithInsecure())
+	log.Printf("Attempting to connect to server on port: %s", serverPorts[randPort])
 	if connErr != nil {
 		log.Fatalf("Failed to connect to server: %v", connErr)
 	}
@@ -67,13 +68,12 @@ func main() {
 
 	var bid int
 	for {
-
 		startTime := time.Now()
 
 		//this should be done with a timer
 		state := conn.GetState()
 
-		if state == connectivity.TransientFailure || state == connectivity.Shutdown && time.Since(startTime) >= 2*time.Second {
+		if state == connectivity.TransientFailure && time.Since(startTime) >= 2*time.Second || state == connectivity.Shutdown && time.Since(startTime) >= 2*time.Second {
 			log.Println("Connection lost!")
 
 			randPort = rand.IntN(len(serverPorts))
@@ -107,23 +107,21 @@ func main() {
 
 		log.Println(bidRes.Message)
 
-		res, err := node.Result(context.Background(), &proto.Empty{})
-
-		if err != nil {
-			log.Fatalf("Failed to get result: %v", err)
-		}
-
-		if res.IsOver {
-			//Do something when the auction is over
-			log.Println(res.Outcome)
-		} else {
-			log.Println(res.Outcome)
-		}
-
 		if bid == -1 {
+			res, err := node.Result(context.Background(), &proto.Empty{})
+
+			if err != nil {
+				log.Fatalf("Failed to get result: %v", err)
+			}
+
+			if res.IsOver {
+				//Do something when the auction is over
+				log.Println(res.Outcome)
+			} else {
+				log.Println(res.Outcome)
+			}
+		} else if bid == -2 {
 			break
 		}
-
 	}
-
 }
