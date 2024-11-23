@@ -18,6 +18,8 @@ var currentBid int = 0
 
 var serverPorts = [3]string{":5050", ":5051", ":5052"}
 
+var auctionOver bool = false
+
 func main() {
 	var name string
 
@@ -47,13 +49,15 @@ func main() {
 			res, err := node.Result(context.Background(), &proto.Empty{})
 			if err != nil {
 				log.Printf("Failed to get result: %v", err)
-				node, err = connectToServer()
+				node, _ = connectToServer()
 				continue
 			}
 
 			if res.IsOver {
 				//Do something when the auction is over
 				fmt.Println(res.Outcome)
+				auctionOver = true
+				break
 			} else {
 				fmt.Println(res.Outcome)
 			}
@@ -104,6 +108,10 @@ func main() {
 				log.Println(res.Outcome)
 			}
 		} else if bid == -2 {
+			break
+		}
+
+		if auctionOver {
 			break
 		}
 	}
