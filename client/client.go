@@ -77,6 +77,10 @@ func main() {
 			currentBid = bid
 		}
 
+		if node == nil {
+			node, _ = connectToServer()
+		}
+
 		bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
 			Amount: int32(currentBid),
 			Client: thisClient,
