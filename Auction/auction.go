@@ -97,6 +97,8 @@ func main() {
 
 	for {
 		if finished {
+			log.Printf("Auction is over")
+			time.Sleep(5 * time.Second)
 			break
 		}
 	}
@@ -123,15 +125,6 @@ func (Auction *AuctionServer) SetID(ctx context.Context, req *proto.Empty) (*pro
 	id := Auction.numberClients
 	Auction.numberClients++
 	return &proto.Client{ID: int32(id)}, nil
-	/*
-		res, _ := Auction.leaderClient.SetID(ctx, &proto.Empty{})
-		if Auction.isLeader {
-			id := Auction.numberClients
-			Auction.numberClients++
-			return &proto.Client{ID: int32(id)}, nil
-		}
-		return res, nil
-	*/
 }
 
 func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*proto.BidResponse, error) {
@@ -147,7 +140,7 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 			} else {
 				return &proto.BidResponse{Message: "Bid Rejected"}, errors.New("bid must be higher than the current highest bid")
 			}
-			if Auction.updateCounter == 100 {
+			if Auction.updateCounter >= 10 {
 				finished = true
 			}
 
@@ -155,11 +148,11 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 			return &proto.BidResponse{Message: "Bid Placed"}, nil
 
 		} else {
-			return &proto.BidResponse{Message: "The auction is over"}, errors.New("cant place bid when auction is over")
+			return &proto.BidResponse{Message: "The auction is over"}, errors.New("can't place bid when auction is over")
 		}
 	} else {
 		if Auction.leaderConn == nil || Auction.leaderClient == nil {
-			conn, err := grpc.Dial(Auction.leaderPort, grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
+			conn, err := grpc.Dial(Auction.leaderPort, grpc.WithInsecure())
 			if err != nil {
 				Auction.setNextServer()
 				Auction.startElection()
@@ -178,18 +171,16 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 
 func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
 	if Auction.isLeader {
-		if finished {
+		if Auction.updateCounter >= 10 {
 			log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
+			time.Sleep(2 * time.Second)
 			final_high_bid := Auction.highestBid
 			final_winner := Auction.highestBidder
+			finished = true
 			return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + strconv.Itoa(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 		} else {
-			Auction.updateCounter = Auction.updateCounter + 1
 
 			log.Println("updateCounter: " + strconv.Itoa(Auction.updateCounter))
-			if Auction.updateCounter == 100 {
-				finished = true
-			}
 
 			return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + strconv.Itoa(Auction.highestBid), IsOver: false}, nil
 		}
@@ -206,9 +197,12 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			log.Printf("Connected to leader %s", Auction.leaderPort)
 		}
 
-		//maybe need to check leaderHealth here
-
 		response, err := Auction.leaderClient.Result(ctx, req)
+
+		if response.IsOver {
+			finished = true
+		}
+
 		return response, err
 	}
 }
@@ -237,7 +231,6 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 					NumberClients: int32(Auction.numberClients),
 				})
 			}
-
 		}
 	}
 }
@@ -293,7 +286,6 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 		if err != nil {
 			log.Fatalf("Failed to send token to next node: %v", err)
 		}
-
 		// Set the leader connection
 		conn, err := grpc.Dial(req.ElectionPort, grpc.WithInsecure())
 		if err != nil {
@@ -325,7 +317,7 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 
 func (Auction *AuctionServer) setNextServer() {
 	if Auction.serverPort == ":5050" {
-		conn, err := grpc.Dial(":5051", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(":5051", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5051"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -354,7 +346,7 @@ func (Auction *AuctionServer) setNextServer() {
 	}
 
 	if Auction.serverPort == ":5052" {
-		conn, err := grpc.Dial(":5050", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(":5050", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5050"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -394,15 +386,13 @@ func (Auction *AuctionServer) checkLeader() bool {
 
 func (Auction *AuctionServer) connectToLeader() {
 	checker := time.NewTicker(5 * time.Second)
-
 	go func() {
 		for range checker.C {
-			if !Auction.isLeader {
+			if !Auction.isLeader && !finished {
 				if Auction.leaderPort == "" {
 					log.Printf("Leader port is not set")
 					continue
 				}
-
 				if Auction.leaderConn == nil {
 					log.Printf("Attempting to connect to leader at %s", Auction.leaderPort)
 					conn, err := grpc.Dial(Auction.leaderPort, grpc.WithInsecure())
@@ -421,7 +411,6 @@ func (Auction *AuctionServer) connectToLeader() {
 						Auction.leaderConn = nil
 						Auction.leaderClient = nil
 					}
-
 					Auction.setNextServer()
 					Auction.startElection()
 				}

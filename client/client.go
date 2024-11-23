@@ -45,7 +45,7 @@ func main() {
 
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
+			time.Sleep(3 * time.Second)
 			res, err := node.Result(context.Background(), &proto.Empty{})
 			if err != nil {
 				log.Printf("Failed to get result: %v", err)
@@ -57,7 +57,7 @@ func main() {
 				//Do something when the auction is over
 				fmt.Println(res.Outcome)
 				auctionOver = true
-				break
+				return
 			} else {
 				fmt.Println(res.Outcome)
 			}
