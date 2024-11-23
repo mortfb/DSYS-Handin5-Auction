@@ -95,14 +95,27 @@ func main() {
 
 	auctionServer.connectToLeader()
 
+	waited := false
+	var count int = 0
+
 	for {
 		if finished {
-			log.Printf("Auction is over")
-			if !auctionServer.isLeader {
+			count++
+			if !auctionServer.isLeader && count == 1 {
 				log.Printf("Auction Result: " + auctionServer.highestBidder + " gets the item for " + strconv.Itoa(auctionServer.highestBid))
 			}
-			time.Sleep(5 * time.Second)
-			break
+			if count == 1 {
+				go func() {
+					log.Printf("Auction is over")
+					<-time.After(5 * time.Second)
+					log.Printf("Shutting down")
+					waited = true
+				}()
+			}
+
+			if waited {
+				break
+			}
 		}
 	}
 
@@ -181,7 +194,7 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			final_winner := Auction.highestBidder
 			finished = true
 
-			go Auction.NotifyAuctionFinished(context.Background())
+			Auction.NotifyAuctionFinished(context.Background())
 			return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + strconv.Itoa(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 		} else {
 
@@ -202,13 +215,15 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			log.Printf("Connected to leader %s", Auction.leaderPort)
 		}
 
-		response, err := Auction.leaderClient.Result(ctx, req)
+		//response, err := Auction.leaderClient.Result(ctx, req)
 
-		if response.IsOver {
-			finished = true
-		}
+		/*
+			if response.IsOver {
+				finished = true
+			}
+		*/
 
-		return response, err
+		return Auction.leaderClient.Result(ctx, req)
 	}
 }
 

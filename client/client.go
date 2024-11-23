@@ -45,12 +45,16 @@ func main() {
 
 	auctionOverchan := make(chan bool)
 
+	var cycle int = 0
+
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
+			cycle++
 			if node == nil {
 				continue
 			}
+
 			res, err := node.Result(context.Background(), &proto.Empty{})
 			if err != nil {
 				log.Printf("Failed to get result: %v", err)
@@ -58,12 +62,14 @@ func main() {
 				continue
 			}
 
+			if cycle%5 == 0 {
+				log.Println(res.Outcome)
+			}
+
 			if res.IsOver {
 				log.Println(res.Outcome)
 				auctionOverchan <- true
 				break
-			} else {
-				log.Println(res.Outcome)
 			}
 
 		}
