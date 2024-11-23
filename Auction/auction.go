@@ -220,22 +220,24 @@ func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context,
 			continue
 		} else {
 			//maybe store the connections in a list
-			conn, err := grpc.Dial(auction, grpc.WithInsecure())
+			conn, err := grpc.Dial(auction, grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
 			}
 			defer conn.Close()
+			if conn != nil {
+				node := proto.NewAuctionClient(conn)
+				//Sends the updated bid to the other auctions
+				node.SendUpdateBid(ctx, &proto.UpdateRequest{
+					ServerID:      Auction.serverID,
+					HighestBid:    int32(Auction.highestBid),
+					HighestBidder: Auction.highestBidder,
+					UpdateCounter: int32(Auction.updateCounter),
+					NumberClients: int32(Auction.numberClients),
+				})
+			}
 
-			node := proto.NewAuctionClient(conn)
-			//Sends the updated bid to the other auctions
-			node.SendUpdateBid(ctx, &proto.UpdateRequest{
-				ServerID:      Auction.serverID,
-				HighestBid:    int32(Auction.highestBid),
-				HighestBidder: Auction.highestBidder,
-				UpdateCounter: int32(Auction.updateCounter),
-				NumberClients: int32(Auction.numberClients),
-			})
 		}
 	}
 }

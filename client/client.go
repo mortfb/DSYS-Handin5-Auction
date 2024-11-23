@@ -120,7 +120,7 @@ func main() {
 func connectToServer() (proto.AuctionClient, error) {
 	var randPort int = rand.IntN(len(serverPorts))
 	//adds the connection and the error early, so it can be changed later
-	conn, connErr := grpc.Dial(serverPorts[randPort], grpc.WithInsecure())
+	conn, connErr := grpc.Dial(serverPorts[randPort], grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 	log.Printf("Attempting to connect to server on port: %s", serverPorts[randPort])
 	if connErr == nil {
 		log.Printf("Connected to  %s", serverPorts[randPort])
