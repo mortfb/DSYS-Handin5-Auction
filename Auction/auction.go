@@ -268,8 +268,11 @@ func (Auction *AuctionServer) startElection() {
 func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error) {
 	if nextServer == nil {
 		Auction.setNextServer()
+	} else if !Auction.checkLeader() {
+		log.Printf("resetting next server")
+		Auction.setNextServer()
 	}
-
+	log.Printf("hello?")
 	if req.LeaderID == Auction.serverID {
 		log.Printf("I won the Election %d", Auction.serverID)
 		Auction.isLeader = true
@@ -302,6 +305,7 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 		log.Printf("I am the current winner")
 		Auction.participate = true
 		Auction.leaderPort = Auction.serverPort
+		log.Printf("next server is: " + nextServerPort)
 		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
 			ElectionPort: Auction.serverPort,
 			ServerID:     Auction.serverID,
@@ -323,7 +327,7 @@ func (Auction *AuctionServer) setNextServer() {
 		nextServerPort = ":5051"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
-			conn, err = grpc.Dial(":5052", grpc.WithInsecure())
+			conn, err = grpc.Dial(":5052", grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
@@ -333,11 +337,12 @@ func (Auction *AuctionServer) setNextServer() {
 	}
 
 	if Auction.serverPort == ":5051" {
-		conn, err := grpc.Dial(":5052", grpc.WithInsecure(), grpc.WithBlock())
+		log.Printf("please do something")
+		conn, err := grpc.Dial(":5052", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5052"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
-			conn, err = grpc.Dial(":5052", grpc.WithInsecure())
+			conn, err = grpc.Dial(":5050", grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
@@ -351,7 +356,7 @@ func (Auction *AuctionServer) setNextServer() {
 		nextServerPort = ":5050"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
-			conn, err = grpc.Dial(":5051", grpc.WithInsecure())
+			conn, err = grpc.Dial(":5051", grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				log.Fatalf("Both other servers are down: %v", err)
 			}
