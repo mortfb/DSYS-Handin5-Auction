@@ -14,8 +14,6 @@ import (
 
 var thisClient *proto.Client
 
-var currentBid int = 0
-
 var serverPorts = [3]string{":5050", ":5051", ":5052"}
 
 var auctionOver bool = false
@@ -83,38 +81,35 @@ func main() {
 				fmt.Println("Enter the bid amount")
 				fmt.Scan(&bid)
 
-				if bid <= currentBid {
-					fmt.Println("Bid must be higher than the current bid")
-					continue
-				} else {
-					currentBid = bid
-				}
-
 				if node == nil {
 					node, _ = connectToServer()
 				}
 
 				bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
-					Amount: int32(currentBid),
+					Amount: int32(bid),
 					Client: thisClient,
 				})
 
 				if erro != nil {
 					log.Printf("something went wrong with bidding %v", erro)
-					log.Printf("Attempting to reconnect to server")
-					node, err = connectToServer()
-					if err != nil {
-						log.Printf("Failed to connect to any server: %v", err)
+					if erro.Error() == "rpc error: code = Unknown desc = bid must be higher than the current highest bid" {
+						log.Printf("Please enter a higher bid")
 					} else {
-						bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
-							Amount: int32(currentBid),
-							Client: thisClient,
-						})
+						log.Printf("Attempting to reconnect to server")
+						node, err = connectToServer()
+						if err != nil {
+							log.Printf("Failed to connect to any server: %v", err)
+						} else {
+							bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
+								Amount: int32(bid),
+								Client: thisClient,
+							})
+						}
 					}
 				}
 
 				if bidRes != nil {
-					log.Println(bidRes.Message)
+					log.Printf(bidRes.Message)
 				}
 
 				if bid == -1 {
