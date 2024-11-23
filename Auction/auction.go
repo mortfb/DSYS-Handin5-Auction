@@ -370,7 +370,7 @@ func (Auction *AuctionServer) checkLeader() bool {
 
 	log.Printf("Checking leader")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	_, err := Auction.leaderClient.TestAlive(ctx, &proto.Empty{})
