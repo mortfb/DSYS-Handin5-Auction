@@ -43,6 +43,8 @@ func main() {
 	tmp, _ := node.SetID(context.Background(), &proto.Empty{})
 	thisClient.ID = tmp.ID
 
+	auctionOverchan := make(chan bool)
+
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
@@ -57,78 +59,84 @@ func main() {
 			}
 
 			if res.IsOver {
-				//Do something when the auction is over
-				fmt.Println(res.Outcome)
-				auctionOver = true
-				return
-			} else {
-				fmt.Println(res.Outcome)
-			}
-		}
-	}()
-
-	var bid int
-	for {
-
-		fmt.Println("Enter the bid amount")
-		fmt.Scan(&bid)
-
-		if bid <= currentBid {
-			fmt.Println("Bid must be higher than the current bid")
-			continue
-		} else {
-			currentBid = bid
-		}
-
-		if node == nil {
-			node, _ = connectToServer()
-		}
-
-		bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
-			Amount: int32(currentBid),
-			Client: thisClient,
-		})
-
-		if erro != nil {
-			log.Printf("something went wrong with bidding %v", erro)
-			log.Printf("Attempting to reconnect to server")
-			node, err = connectToServer()
-			if err != nil {
-				log.Printf("Failed to connect to any server: %v", err)
-			} else {
-				bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
-					Amount: int32(currentBid),
-					Client: thisClient,
-				})
-			}
-		}
-
-		if bidRes != nil {
-			log.Println(bidRes.Message)
-		}
-
-		if bid == -1 {
-			res, err := node.Result(context.Background(), &proto.Empty{})
-
-			if err != nil {
-				log.Fatalf("Failed to get result: %v", err)
-			}
-
-			if res.IsOver {
-				//Do something when the auction is over
 				log.Println(res.Outcome)
+				auctionOverchan <- true
 				break
 			} else {
 				log.Println(res.Outcome)
 			}
-		} else if bid == -2 {
-			break
+
+		}
+	}()
+
+	var bid int
+
+	go func() {
+		for {
+			if !auctionOver {
+				fmt.Println("Enter the bid amount")
+				fmt.Scan(&bid)
+
+				if bid <= currentBid {
+					fmt.Println("Bid must be higher than the current bid")
+					continue
+				} else {
+					currentBid = bid
+				}
+
+				if node == nil {
+					node, _ = connectToServer()
+				}
+
+				bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
+					Amount: int32(currentBid),
+					Client: thisClient,
+				})
+
+				if erro != nil {
+					log.Printf("something went wrong with bidding %v", erro)
+					log.Printf("Attempting to reconnect to server")
+					node, err = connectToServer()
+					if err != nil {
+						log.Printf("Failed to connect to any server: %v", err)
+					} else {
+						bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
+							Amount: int32(currentBid),
+							Client: thisClient,
+						})
+					}
+				}
+
+				if bidRes != nil {
+					log.Println(bidRes.Message)
+				}
+
+				if bid == -1 {
+					res, err := node.Result(context.Background(), &proto.Empty{})
+
+					if err != nil {
+						log.Fatalf("Failed to get result: %v", err)
+					}
+
+					if res.IsOver {
+						//Do something when the auction is over
+						log.Println(res.Outcome)
+						break
+					} else {
+						log.Println(res.Outcome)
+					}
+				} else if bid == -2 {
+					break
+				}
+			}
+
 		}
 
-		if auctionOver {
-			break
-		}
-	}
+	}()
+
+	<-auctionOverchan
+
+	log.Printf("Auction is over")
 }
 
 func connectToServer() (proto.AuctionClient, error) {

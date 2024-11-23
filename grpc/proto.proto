@@ -14,6 +14,8 @@ service Auction{
     rpc sendUpdateBid(UpdateRequest) returns (UpdateResponse);
 
     rpc testAlive(Empty) returns (Empty);
+
+    rpc auctionFinished(Empty) returns (Empty);
 }
 
 message Empty{};

@@ -98,6 +98,9 @@ func main() {
 	for {
 		if finished {
 			log.Printf("Auction is over")
+			if !auctionServer.isLeader {
+				log.Printf("Auction Result: " + auctionServer.highestBidder + " gets the item for " + strconv.Itoa(auctionServer.highestBid))
+			}
 			time.Sleep(5 * time.Second)
 			break
 		}
@@ -177,6 +180,8 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			final_high_bid := Auction.highestBid
 			final_winner := Auction.highestBidder
 			finished = true
+
+			go Auction.NotifyAuctionFinished(context.Background())
 			return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + strconv.Itoa(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 		} else {
 
@@ -420,5 +425,31 @@ func (Auction *AuctionServer) connectToLeader() {
 }
 
 func (Auction *AuctionServer) TestAlive(ctx context.Context, req *proto.Empty) (*proto.Empty, error) {
+	return &proto.Empty{}, nil
+}
+
+func (Auction *AuctionServer) NotifyAuctionFinished(ctx context.Context) {
+	for _, auction := range Auction.otherAuctionPorts {
+		if auction == Auction.serverPort {
+			continue
+		} else {
+			conn, err := grpc.Dial(auction, grpc.WithInsecure())
+			if err != nil {
+				log.Printf("Failed to connect to auction %s: %v", auction, err)
+				continue
+			}
+			defer conn.Close()
+
+			node := proto.NewAuctionClient(conn)
+			_, err = node.AuctionFinished(ctx, &proto.Empty{})
+			if err != nil {
+				log.Printf("Failed to notify auction %s: %v", auction, err)
+			}
+		}
+	}
+}
+
+func (Auction *AuctionServer) AuctionFinished(ctx context.Context, req *proto.Empty) (*proto.Empty, error) {
+	finished = true
 	return &proto.Empty{}, nil
 }
