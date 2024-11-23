@@ -91,11 +91,18 @@ func main() {
 			log.Printf("Attempting to reconnect to server")
 			node, err = connectToServer()
 			if err != nil {
-				log.Fatalf("Failed to connect to any server: %v", err)
+				log.Printf("Failed to connect to any server: %v", err)
+			} else {
+				bidRes, erro = node.Bid(context.Background(), &proto.BidRequest{
+					Amount: int32(currentBid),
+					Client: thisClient,
+				})
 			}
 		}
 
-		log.Println(bidRes.Message)
+		if bidRes != nil {
+			log.Println(bidRes.Message)
+		}
 
 		if bid == -1 {
 			res, err := node.Result(context.Background(), &proto.Empty{})

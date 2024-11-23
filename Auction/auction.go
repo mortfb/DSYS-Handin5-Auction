@@ -159,7 +159,7 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 		}
 	} else {
 		if Auction.leaderConn == nil || Auction.leaderClient == nil {
-			conn, err := grpc.Dial(Auction.leaderPort, grpc.WithInsecure())
+			conn, err := grpc.Dial(Auction.leaderPort, grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				Auction.setNextServer()
 				Auction.startElection()
