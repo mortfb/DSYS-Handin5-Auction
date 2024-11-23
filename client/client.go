@@ -46,6 +46,9 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
+			if node == nil {
+				continue
+			}
 			res, err := node.Result(context.Background(), &proto.Empty{})
 			if err != nil {
 				log.Printf("Failed to get result: %v", err)
@@ -93,7 +96,7 @@ func main() {
 			if err != nil {
 				log.Printf("Failed to connect to any server: %v", err)
 			} else {
-				bidRes, erro = node.Bid(context.Background(), &proto.BidRequest{
+				bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
 					Amount: int32(currentBid),
 					Client: thisClient,
 				})
@@ -140,7 +143,7 @@ func connectToServer() (proto.AuctionClient, error) {
 	}
 	log.Printf("Failed to connect to server %s: %v", serverPorts[randPort], connErr)
 	if connErr != nil {
-		connectToServer()
+		return connectToServer()
 	}
 
 	return nil, errors.New("failed to connect to any server")
