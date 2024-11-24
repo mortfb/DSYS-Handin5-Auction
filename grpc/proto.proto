@@ -57,6 +57,7 @@ message UpdateRequest{
     string highestBidder = 3;
     int32 updateCounter = 4;
     int32 numberClients = 5;
+    int32 highestBidID = 6;
 }
 
 message UpdateResponse{

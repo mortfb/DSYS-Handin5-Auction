@@ -43,7 +43,7 @@ func main() {
 
 	go func() {
 		for {
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			cycle++
 			if node == nil {
 				continue
@@ -90,6 +90,7 @@ func main() {
 
 					if res.IsOver {
 						log.Println(res.Outcome)
+						auctionOverchan <- true
 						break
 					} else {
 						log.Println(res.Outcome)
