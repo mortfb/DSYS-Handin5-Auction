@@ -156,11 +156,11 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 			} else {
 				return &proto.BidResponse{Message: "Bid Rejected"}, errors.New("bid must be higher than the current highest bid")
 			}
-			if Auction.updateCounter >= 10 {
+			if Auction.updateCounter >= 100 {
 				finished = true
 			}
 
-			Auction.sendUpdatedBidToOtherAuctions(ctx, req)
+			Auction.sendUpdateToServers(ctx)
 			return &proto.BidResponse{Message: "Bid Placed"}, nil
 
 		} else {
@@ -187,7 +187,8 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 
 func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*proto.ResultResponse, error) {
 	if Auction.isLeader {
-		if Auction.updateCounter >= 10 {
+		Auction.updateCounter++
+		if Auction.updateCounter >= 100 {
 			log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 			time.Sleep(2 * time.Second)
 			final_high_bid := Auction.highestBid
@@ -199,7 +200,7 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 		} else {
 
 			log.Println("updateCounter: " + strconv.Itoa(Auction.updateCounter))
-
+			Auction.sendUpdateToServers(ctx)
 			return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + strconv.Itoa(Auction.highestBid), IsOver: false}, nil
 		}
 	} else {
@@ -215,20 +216,12 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			log.Printf("Connected to leader %s", Auction.leaderPort)
 		}
 
-		//response, err := Auction.leaderClient.Result(ctx, req)
-
-		/*
-			if response.IsOver {
-				finished = true
-			}
-		*/
-
 		return Auction.leaderClient.Result(ctx, req)
 	}
 }
 
 // connects to the other auctionservers
-func (Auction *AuctionServer) sendUpdatedBidToOtherAuctions(ctx context.Context, req *proto.BidRequest) {
+func (Auction *AuctionServer) sendUpdateToServers(ctx context.Context) {
 	for _, auction := range Auction.otherAuctionPorts {
 		if auction == Auction.serverPort {
 			continue

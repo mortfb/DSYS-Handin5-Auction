@@ -28,10 +28,6 @@ func main() {
 		Name: name,
 	}
 
-	//Client connects to a random port, simulating front-end???????????.
-
-	//adds the connection and the error early, so it can be changed later
-
 	//connects the client to the frontendmanager
 	node, err := connectToServer()
 	if err != nil {
@@ -85,6 +81,25 @@ func main() {
 					node, _ = connectToServer()
 				}
 
+				if bid == -1 {
+					res, err := node.Result(context.Background(), &proto.Empty{})
+
+					if err != nil {
+						log.Fatalf("Failed to get result: %v", err)
+					}
+
+					if res.IsOver {
+						log.Println(res.Outcome)
+						break
+					} else {
+						log.Println(res.Outcome)
+						continue
+					}
+				} else if bid == -2 {
+					auctionOverchan <- true
+					break
+				}
+
 				bidRes, erro := node.Bid(context.Background(), &proto.BidRequest{
 					Amount: int32(bid),
 					Client: thisClient,
@@ -110,24 +125,6 @@ func main() {
 
 				if bidRes != nil {
 					log.Printf(bidRes.Message)
-				}
-
-				if bid == -1 {
-					res, err := node.Result(context.Background(), &proto.Empty{})
-
-					if err != nil {
-						log.Fatalf("Failed to get result: %v", err)
-					}
-
-					if res.IsOver {
-						//Do something when the auction is over
-						log.Println(res.Outcome)
-						break
-					} else {
-						log.Println(res.Outcome)
-					}
-				} else if bid == -2 {
-					break
 				}
 			}
 
