@@ -106,10 +106,11 @@ func main() {
 				})
 
 				if erro != nil {
-					log.Printf("something went wrong with bidding %v", erro)
+					log.Printf("something went wrong with bidding")
 					if erro.Error() == "rpc error: code = Unknown desc = bid must be higher than the current highest bid" {
 						log.Printf("Please enter a higher bid")
 					} else {
+						log.Printf("Error: %v", erro)
 						log.Printf("Attempting to reconnect to server")
 						node, err = connectToServer()
 						if err != nil {

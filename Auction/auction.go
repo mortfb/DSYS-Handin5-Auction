@@ -200,7 +200,10 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 			return &proto.ResultResponse{Outcome: "Auction Result: " + final_winner + " gets the item for " + strconv.Itoa(final_high_bid), HighestBid: int32(final_high_bid), IsOver: true}, nil
 		} else {
 
-			log.Println("updateCounter: " + strconv.Itoa(Auction.updateCounter))
+			if Auction.updateCounter%10 == 0 {
+				log.Println("updateCounter: " + strconv.Itoa(Auction.updateCounter))
+			}
+
 			Auction.sendUpdateToServers(ctx)
 			return &proto.ResultResponse{Outcome: "Auction is still running, currently " + Auction.highestBidder + " has the highest bid on " + strconv.Itoa(Auction.highestBid), IsOver: false}, nil
 		}
@@ -223,6 +226,8 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 
 // connects to the other auctionservers
 func (Auction *AuctionServer) sendUpdateToServers(ctx context.Context) {
+	var tmpPorts []string
+
 	for _, auction := range Auction.otherAuctionPorts {
 		if auction == Auction.serverPort {
 			continue
@@ -245,19 +250,25 @@ func (Auction *AuctionServer) sendUpdateToServers(ctx context.Context) {
 					NumberClients: int32(Auction.numberClients),
 				})
 			}
+			tmpPorts = append(tmpPorts, auction)
 		}
 	}
+	Auction.otherAuctionPorts = tmpPorts
 }
 
 // this is only called by the leader
 func (Auction *AuctionServer) SendUpdateBid(ctx context.Context, req *proto.UpdateRequest) (*proto.UpdateResponse, error) {
 	log.Printf("Update info received from leader")
+	var prevBid int = Auction.highestBid
+
 	if int(req.UpdateCounter) > Auction.updateCounter {
 		Auction.highestBid = int(req.HighestBid)
 		Auction.highestBidder = req.HighestBidder
 		Auction.updateCounter = int(req.UpdateCounter)
 		Auction.numberClients = int(req.NumberClients)
-		log.Printf("Highest bid is now %d by %s", Auction.highestBid, Auction.highestBidder)
+		if prevBid < Auction.highestBid {
+			log.Printf("Highest bid is now %d by %s", Auction.highestBid, Auction.highestBidder)
+		}
 		return &proto.UpdateResponse{
 			Success: true,
 		}, nil
@@ -438,11 +449,13 @@ func (Auction *AuctionServer) TestAlive(ctx context.Context, req *proto.Empty) (
 }
 
 func (Auction *AuctionServer) NotifyAuctionFinished(ctx context.Context) {
+	var tmpPorts []string
+
 	for _, auction := range Auction.otherAuctionPorts {
 		if auction == Auction.serverPort {
 			continue
 		} else {
-			conn, err := grpc.Dial(auction, grpc.WithInsecure())
+			conn, err := grpc.Dial(auction, grpc.WithTimeout(3*time.Second), grpc.WithInsecure())
 			if err != nil {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
@@ -455,7 +468,11 @@ func (Auction *AuctionServer) NotifyAuctionFinished(ctx context.Context) {
 				log.Printf("Failed to notify auction %s: %v", auction, err)
 			}
 		}
+
+		tmpPorts = append(tmpPorts, auction)
 	}
+
+	Auction.otherAuctionPorts = tmpPorts
 }
 
 func (Auction *AuctionServer) AuctionFinished(ctx context.Context, req *proto.Empty) (*proto.Empty, error) {
