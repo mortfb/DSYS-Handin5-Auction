@@ -46,7 +46,7 @@ func main() {
 			serverID:          0,
 			serverPort:        ":5050",
 			highestBid:        0,
-			highestBidder:     "",
+			highestBidder:     "NONE",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5051", ":5052"},
 			updateCounter:     0,
@@ -60,7 +60,7 @@ func main() {
 			serverID:          1,
 			serverPort:        ":5051",
 			highestBid:        0,
-			highestBidder:     "",
+			highestBidder:     "NONE",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5052"},
 			updateCounter:     0,
@@ -74,7 +74,7 @@ func main() {
 			serverID:          2,
 			serverPort:        ":5052",
 			highestBid:        0,
-			highestBidder:     "",
+			highestBidder:     "NONE",
 			highestBidderID:   0,
 			otherAuctionPorts: []string{":5050", ":5051"},
 			updateCounter:     0,
@@ -154,6 +154,7 @@ func (Auction *AuctionServer) Bid(ctx context.Context, req *proto.BidRequest) (*
 				Auction.highestBidder = req.Client.Name
 				Auction.highestBidderID = int(req.Client.ID)
 			} else {
+				Auction.sendUpdateToServers(ctx)
 				return &proto.BidResponse{Message: "Bid Rejected"}, errors.New("bid must be higher than the current highest bid")
 			}
 			if Auction.updateCounter >= 100 {
