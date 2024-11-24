@@ -289,34 +289,36 @@ func (Auction *AuctionServer) SendUpdateBid(ctx context.Context, req *proto.Upda
 
 func (Auction *AuctionServer) startElection() {
 	log.Printf("Starting election")
-	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{ElectionPort: Auction.serverPort, LeaderID: -1, ServerID: Auction.serverID})
+	Auction.SendElectionMessage(context.Background(), &proto.ElectionRequest{ElectionPort: Auction.serverPort, LeaderID: -1, ServerID: Auction.serverID}) //the server that calls the election is the first one to be "checked"
+	//LeaderID is -1 to say that there is no "current leader" because no server has that ID
 }
 
 func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *proto.ElectionRequest) (*proto.ElectionResponse, error) {
-	if nextServer == nil {
+	if nextServer == nil { //this is to ensure that the connections between servers for the ring is established
 		Auction.setNextServer()
-	} else if !Auction.checkLeader() {
+	} else if !Auction.checkLeader() { //if the leader is dead, then the ring gets "reset" to exclude the leader
 		Auction.setNextServer()
 	}
 
-	if req.LeaderID == Auction.serverID {
+	if req.LeaderID == Auction.serverID { //every server has been checked and its the leader's turn again for the second time. Nothing is larger than the leader
 		log.Printf("I won the Election %d", Auction.serverID)
 		Auction.isLeader = true
 		Auction.leaderPort = Auction.serverPort
+		//since this server is the leader, then it doesn't have to send anything to the leader. It also removes the connection from a previous (dead) leader
 		Auction.leaderConn = nil
 		Auction.leaderClient = nil
-	} else if req.LeaderID > Auction.serverID {
-		log.Println("I am just sending this over to " + nextServerPort)
+	} else if req.LeaderID > Auction.serverID { //the server is smaller than the leader so it passes the message it received to the next server
+		log.Println("Sending election message to " + nextServerPort)
 		Auction.leaderPort = req.ElectionPort
-		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{ //message gets passed on here to the next server
 			ElectionPort: req.ElectionPort,
 			ServerID:     req.ServerID,
 			LeaderID:     req.LeaderID,
 		})
-
 		if err != nil {
 			log.Fatalf("Failed to send token to next node: %v", err)
 		}
+
 		// Set the leader connection
 		conn, err := grpc.Dial(req.ElectionPort, grpc.WithInsecure())
 		if err != nil {
@@ -326,12 +328,12 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 		Auction.leaderClient = proto.NewAuctionClient(conn)
 		log.Printf("Connected to new leader %s", req.ElectionPort)
 
-	} else if !Auction.participate {
+	} else if !Auction.participate { //the server becomes the "current leading" server
 		log.Printf("I am the current winner")
 		Auction.participate = true
 		Auction.leaderPort = Auction.serverPort
 		log.Printf("next server is: " + nextServerPort)
-		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{
+		_, err := nextServer.SendElectionMessage(ctx, &proto.ElectionRequest{ //tells the next server that they are the current leader
 			ElectionPort: Auction.serverPort,
 			ServerID:     Auction.serverID,
 			LeaderID:     Auction.serverID,
@@ -340,7 +342,7 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 			log.Fatalf("Failed to send token to next node: %v", err)
 		}
 	}
-	log.Printf("The leader is %s", Auction.leaderPort)
+	log.Printf("The leader is %s", Auction.leaderPort) //this prints out when all recursive methods have been resolved, which happens when the leader is found
 	return &proto.ElectionResponse{
 		Success: true,
 	}, nil
