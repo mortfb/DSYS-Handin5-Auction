@@ -18,4 +18,6 @@ Client commands:
 - A client can type '-2' instead of an actual bid, to terminate, leaving the auction.
 
 ## How to terminate a node
-The program can currently handle ONE node failure in the group of server nodes. Go to the terminal belonging to the server node you want to fail and then press ctrl + c, to terminate the node. If it is the leader node, that you decide to crash, a new election will be held between the remaining nodes, otherwise the leader will stop sending updates to the now dead node. If a client is connected to the node that fails, the client will then request to connect to one of the other nodes.  
+The program can currently handle ONE node failure in the group of server nodes. Go to the terminal belonging to the server node you want to fail and then press ctrl + c, to terminate the node. If it is the leader node, that you decide to crash, a new election will be held between the remaining nodes, otherwise the leader will stop sending updates to the now dead node. If a client is connected to the node that fails, the client will then request to connect to one of the other nodes.
+
+NOTE: Its recommended to not immediately send a bid or manually request a result, the second after the leader has crashed. 
