@@ -239,7 +239,7 @@ func (Auction *AuctionServer) sendUpdateToServers(ctx context.Context) {
 		if auction == Auction.serverPort {
 			continue
 		} else {
-			conn, err := grpc.Dial(auction, grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
+			conn, err := grpc.Dial(auction, grpc.WithTimeout(1*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				continue
@@ -350,7 +350,7 @@ func (Auction *AuctionServer) SendElectionMessage(ctx context.Context, req *prot
 
 func (Auction *AuctionServer) setNextServer() {
 	if Auction.serverPort == ":5050" {
-		conn, err := grpc.Dial(":5051", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(":5051", grpc.WithTimeout(1*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5051"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -364,7 +364,7 @@ func (Auction *AuctionServer) setNextServer() {
 	}
 
 	if Auction.serverPort == ":5051" {
-		conn, err := grpc.Dial(":5052", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(":5052", grpc.WithTimeout(1*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5052"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -378,7 +378,7 @@ func (Auction *AuctionServer) setNextServer() {
 	}
 
 	if Auction.serverPort == ":5052" {
-		conn, err := grpc.Dial(":5050", grpc.WithTimeout(3*time.Second), grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.Dial(":5050", grpc.WithTimeout(1*time.Second), grpc.WithInsecure(), grpc.WithBlock())
 		nextServerPort = ":5050"
 		if err != nil {
 			log.Printf("Failed to connect to server: %v", err)
@@ -401,7 +401,7 @@ func (Auction *AuctionServer) checkLeader() bool {
 		return false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	_, err := Auction.leaderClient.TestAlive(ctx, &proto.Empty{})
@@ -465,7 +465,7 @@ func (Auction *AuctionServer) NotifyAuctionFinished(ctx context.Context) {
 		if auction == Auction.serverPort {
 			continue
 		} else {
-			conn, err := grpc.Dial(auction, grpc.WithTimeout(3*time.Second), grpc.WithInsecure())
+			conn, err := grpc.Dial(auction, grpc.WithTimeout(1*time.Second), grpc.WithInsecure())
 			if err != nil {
 				log.Printf("Failed to connect to auction %s: %v", auction, err)
 				//If we can't connect to the node, we assume its dead and remove it from the list
