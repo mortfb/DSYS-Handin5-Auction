@@ -101,7 +101,7 @@ func main() {
 	for {
 		if finished {
 			count++
-			if !auctionServer.isLeader && count == 1 {
+			if count == 1 {
 				log.Printf("Auction Result: " + auctionServer.highestBidder + " gets the item for " + strconv.Itoa(auctionServer.highestBid))
 			}
 			if count == 1 {
@@ -194,7 +194,6 @@ func (Auction *AuctionServer) Result(ctx context.Context, req *proto.Empty) (*pr
 	if Auction.isLeader {
 		Auction.updateCounter++
 		if Auction.updateCounter >= 100 {
-			log.Printf("Auction Result: %s gets the item for %d", Auction.highestBidder, Auction.highestBid)
 			time.Sleep(2 * time.Second)
 			final_high_bid := Auction.highestBid
 			final_winner := Auction.highestBidder
@@ -265,7 +264,6 @@ func (Auction *AuctionServer) sendUpdateToServers(ctx context.Context) {
 
 // sends the update bid to the other nodes
 func (Auction *AuctionServer) SendUpdateBid(ctx context.Context, req *proto.UpdateRequest) (*proto.UpdateResponse, error) {
-	log.Printf("Update info received from leader")
 	var prevBid int = Auction.highestBid
 
 	if int(req.UpdateCounter) > Auction.updateCounter {
@@ -275,6 +273,7 @@ func (Auction *AuctionServer) SendUpdateBid(ctx context.Context, req *proto.Upda
 		Auction.numberClients = int(req.NumberClients)
 		Auction.highestBidderID = int(req.HighestBidID)
 		if prevBid < Auction.highestBid {
+			log.Printf("Update info received from leader")
 			log.Printf("Highest bid is now %d by %s", Auction.highestBid, Auction.highestBidder)
 		}
 		return &proto.UpdateResponse{
