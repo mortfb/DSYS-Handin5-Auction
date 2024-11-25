@@ -49,9 +49,9 @@ func main() {
 				continue
 			}
 
-			res, err := node.Result(context.Background(), &proto.Empty{})
-			if err != nil {
-				log.Printf("Failed to get result: %v", err)
+			res, err2 := node.Result(context.Background(), &proto.Empty{})
+			if err2 != nil {
+				log.Printf("Failed to get result")
 				node, _ = connectToServer()
 				continue
 			}
@@ -82,10 +82,12 @@ func main() {
 				}
 
 				if bid == -1 {
-					res, err := node.Result(context.Background(), &proto.Empty{})
+					res, err3 := node.Result(context.Background(), &proto.Empty{})
 
-					if err != nil {
-						log.Fatalf("Failed to get result: %v", err)
+					if err3 != nil {
+						log.Printf("Failed to get result")
+						node, _ = connectToServer()
+						continue
 					}
 
 					if res.IsOver {
@@ -113,8 +115,8 @@ func main() {
 					} else {
 						log.Printf("Error: %v", erro)
 						log.Printf("Attempting to reconnect to server")
-						node, err = connectToServer()
-						if err != nil {
+						node, err4 := connectToServer()
+						if err4 != nil {
 							log.Printf("Failed to connect to any server: %v", err)
 						} else {
 							bidRes, _ = node.Bid(context.Background(), &proto.BidRequest{
